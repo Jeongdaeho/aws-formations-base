@@ -72,7 +72,7 @@ Mappings:
         t4g.medium: 
             Ami: "ami-0c4151369dfab2351"
 Resources:
-    VPCSecurityGroup:
+    VPC:
         Type: "AWS::EC2::VPC"
         Properties:
             CidrBlock: "10.0.0.0/16"
@@ -88,6 +88,7 @@ Resources:
         Type: "AWS::EC2::InternetGateway"
         Properties:
             Tags: 
+
                 - Key: Name
                   Value: !Join ["", [!Ref AWS::StackName, "-Gateway"]]
                 - Key: Application 
@@ -351,7 +352,7 @@ Resources:
     SecurityGroupWeb:
         Type: "AWS::EC2::SecurityGroup"
         Properties:
-            Name: Value: !Join ["", [!Ref AWS::StackName, "-Web"]]
+            Name: !Join ["", [!Ref AWS::StackName, "-Web"]]
             GroupDescription: "Web Security Group"
             VpcId: !Ref VPC
             Tags: 
@@ -369,7 +370,7 @@ Resources:
     SecurityGroupDB: 
         Type: "AWS::EC2::SecurityGroup"
         Properties: 
-            Name: Value: !Join ["", [!Ref AWS::StackName, "-DB"]]
+            Name: !Join ["", [!Ref AWS::StackName, "-DB"]]
             GroupDescription: "DB Security Group"
             VpcId: !Ref VPC
             Tags: 
@@ -385,7 +386,7 @@ Resources:
     SecurityGroupBastion:
         Type: "AWS::EC2::SecurityGroup"
         Properties:
-            Name: Value: !Join ["", [!Ref AWS::StackName, "-Bastion"]]
+            Name: !Join ["", [!Ref AWS::StackName, "-Bastion"]]
             GroupDescription: "Bastion Security Group"
             VpcId: !Ref VPC
             Tags: 
@@ -402,7 +403,7 @@ Resources:
     SecurityGroupELB:
         Type: AWS::EC2::SecurityGroup
         Properties:
-            Name: Value: !Join ["", [!Ref AWS::StackName, "-ELB"]]
+            Name: !Join ["", [!Ref AWS::StackName, "-ELB"]]
             GroupDescription: Access to the load balancer that sits in front of ECS
             VpcId: !Ref VPC
             SecurityGroupIngress:
@@ -547,6 +548,23 @@ Resources:
                     # chown -R ec2-user.ec2-user www
 
     # RDS instance
+    DBInstance:
+        Type: "AWS::RDS::DBInstance"
+        Properties:
+            DBName            : !Ref DBName
+            Engine            : "MariaDB"
+            MasterUsername    : !Ref DBName
+            MasterUserPassword: !Ref DBPassword
+            DBInstanceClass   : !Ref DBClass
+            # 2021.07.01 현시점 최소 20G
+            AllocatedStorage  : 20
+            VPCSecurityGroups: [ !GetAtt [ "SecurityGroupDB", "GroupId"] ]
+            DBSubnetGroupName : !Ref DBSubnetGroup
+            Tags:
+                - Key: "Name"
+                  Value: !Join ["", [!Ref AWS::StackName, "-db"]]
+                - Key: Application 
+                  Value: !Ref AWS::StackName
     DBInstance:
         Type: "AWS::RDS::DBInstance"
         Properties:
