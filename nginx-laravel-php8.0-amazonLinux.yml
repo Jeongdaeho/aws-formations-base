@@ -385,9 +385,6 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash 
-          #최신버젼 설치.
-          apt update -y aws-cfn-bootstrap
-
           # php, nginx, git 설치
           amazon-linux-extras install -y php8.0 nginx1
           yum install -y git php-bcmath php-mbstring php-gd php-xml php-opcache php-zip
@@ -395,26 +392,63 @@ Resources:
           # nginx 시작 프로그램 등록.
           service nginx start
 
-          # composer 설치 
-          curl -sS https://getcomposer.org/installer | php >> /home/ec2-user/install.log
-          mv composer.phar /usr/local/bin/composer >> /home/ec2-user/install.log
-          ln -s /usr/local/bin/composer /usr/bin/composer >> /home/ec2-user/install.log
-
-          # nginx conf 수정
-          sed -i \"s/'/usr/share/nginx/htm'/'",'/home/ec2-user/www/public', "'/g\" wp-config.php\n
-          sed composer global require laravel/installer
-          #laravel 설치
-          composer global require laravel/installer >> /home/ec2-user/install.log
-
-          # nginx 그룹권한 추가  
-          # sudo chown -R ec2-user:nginx /home/www >> /home/ec2-user/install.log
           usermod -a -G nginx ec2-user >> /home/ec2-user/install.log
-          # nginx 설정파일변경
           # 시간대 변경
           timedatectl set-timezone Asia/Seoul >> /home/ec2-user/install.log
 
+          # 디렉토리 권한 변경
+          sudo chmod 711 /home/ec2-user
+          sudo usermod -a -G nginx ec2-user
+
+
+          # sudo chown -R ec2-user:nginx ~/www
+
+          # composer 설치
+          # cd /home/ec2-user
+          # curl -sS https://getcomposer.org/installer | php 
+          # mv composer.phar /usr/local/bin/composer
+          # ln -s /usr/local/bin/composer /usr/bin/composer >> /home/ec2-user/install.log
+
+          #laravel 설치
+          # composer global require laravel/installer >> /home/ec2-user/install.log
+
+          # 소스 내려받기
           # git clone https://id:password@github.com/mycompany/ExampleServer.git www
-          # chown -R ec2-user.ec2-user www
+          # chown -R ec2-user.ec2-user /home/ec2-user/www
+
+          # nginx conf 수정 
+          # server {
+          #   listen 80;
+          #   server_name example.com;
+          #   root /home/ec2-user/www/public;
+
+          #   add_header X-Frame-Options "SAMEORIGIN";
+          #   add_header X-XSS-Protection "1; mode=block";
+          #   add_header X-Content-Type-Options "nosniff";
+
+          #   index index.php;
+
+          #   charset utf-8;
+
+          #   location / {
+          #     try_files $uri $uri/ /index.php?$query_string;
+          #   }
+
+          #   location = /favicon.ico { access_log off; log_not_found off; }
+          #   location = /robots.txt  { access_log off; log_not_found off; }
+
+          #   error_page 404 /index.php;
+
+          #   location ~ \.php$ {
+          #     fastcgi_pass unix:/var/run/php-fpm/www.sock;
+          #     fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+          #     include fastcgi_params;
+          #   }
+
+          #   location ~ /\.(?!well-known).* {
+          #     deny all;
+          #   }
+          # }
 
   # RDS instance
   MasterDB:
