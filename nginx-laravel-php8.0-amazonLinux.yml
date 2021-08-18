@@ -385,14 +385,30 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash 
+          # yum update
+          sudo yum -y update || sudo install -y amazon-linux-extras
           # php, nginx, git 설치
-          amazon-linux-extras install -y php8.0 nginx1
-          yum install -y git php-bcmath php-mbstring php-gd php-xml php-opcache php-zip
+          sudo amazon-linux-extras install -y nginx1 php8.0
+          sudo yum install -y git sudo yum install git mariadb-server php-{pear,cgi,common,curl,mbstring,gd,mysqlnd,gettext,bcmath,json,xml,fpm,intl,zip} -y          
 
           # nginx 시작 프로그램 등록.
+          sudo systemctl enable nginx
           service nginx start
 
+          # php-fpm 설정. php-fpm 실행 권한이 변경된다.
+          sudo sed -i 's|;*user = apache|user = nginx|g' /etc/php-fpm.d/www.conf
+          sudo sed -i 's|;*group = apache|group = nginx|g' /etc/php-fpm.d/www.conf
+          service php-fpm restart
+
+          # group 권한 추가
           usermod -a -G nginx ec2-user >> /home/ec2-user/install.log
+
+          # php.ini 설정변경 ( 기본 설정이 다를 수 있으니 확인이 필요하다.)
+        # configure php
+          # sudo sed -i 's|;*post_max_size = 8M|post_max_size = 50M|g' /etc/php.ini
+          # sudo sed -i 's|;*upload_max_filesize = 2M|upload_max_filesize = 10M|g' /etc/php.ini
+          # sudo sed -i 's|;*max_file_uploads = 20|max_file_uploads = 20|g' /etc/php.ini
+
           # 시간대 변경
           timedatectl set-timezone Asia/Seoul >> /home/ec2-user/install.log
 
@@ -400,6 +416,82 @@ Resources:
           sudo chmod 711 /home/ec2-user
           sudo usermod -a -G nginx ec2-user
 
+          # Back up nginx config
+          sudo cp -R /etc/nginx /etc/nginx-backup
+
+          # nginx.conf 파일 수정 
+          cat << EOF > /etc/nginx/nginx.conf
+           # For more information on configuration, see:
+          #   * Official English Documentation: http://nginx.org/en/docs/
+          #   * Official Russian Documentation: http://nginx.org/ru/docs/
+
+          user nginx;
+          worker_processes auto;
+          error_log /var/log/nginx/error.log;
+          pid /run/nginx.pid;
+
+          # Load dynamic modules. See /usr/share/doc/nginx/README.dynamic.
+          include /usr/share/nginx/modules/*.conf;
+
+          events {
+              worker_connections 1024;
+          }
+
+          http {
+              log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                                '$status $body_bytes_sent "$http_referer" '
+                                '"$http_user_agent" "$http_x_forwarded_for"';
+
+              access_log  /var/log/nginx/access.log  main;
+
+              sendfile            on;
+              tcp_nopush          on;
+              tcp_nodelay         on;
+              keepalive_timeout   65;
+              types_hash_max_size 4096;
+
+              include             /etc/nginx/mime.types;
+              default_type        application/octet-stream;
+
+              # Load modular configuration files from the /etc/nginx/conf.d directory.
+              # See http://nginx.org/en/docs/ngx_core_module.html#include
+              # for more information.
+              include /etc/nginx/conf.d/*.conf;
+
+              server {
+              listen 80;
+              server_name example.com;
+              root /home/ec2-user/www/public;
+
+              add_header X-Frame-Options "SAMEORIGIN";
+              add_header X-Content-Type-Options "nosniff";
+
+              index index.php;
+
+              charset utf-8;
+
+              location / {
+                  try_files $uri $uri/ /index.php?$query_string;
+              }
+
+              location = /favicon.ico { access_log off; log_not_found off; }
+              location = /robots.txt  { access_log off; log_not_found off; }
+
+              error_page 404 /index.php;
+
+              location ~ \.php$ {
+                  fastcgi_pass unix:/var/run/php-fpm/www.sock;
+                  fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+
+              location ~ /\.(?!well-known).* {
+                  deny all;
+              }
+          }
+        }
+        EOF
+        service nginx start
 
           # sudo chown -R ec2-user:nginx ~/www
 
@@ -415,40 +507,6 @@ Resources:
           # 소스 내려받기
           # git clone https://id:password@github.com/mycompany/ExampleServer.git www
           # chown -R ec2-user.ec2-user /home/ec2-user/www
-
-          # nginx conf 수정 
-          # server {
-          #   listen 80;
-          #   server_name example.com;
-          #   root /home/ec2-user/www/public;
-
-          #   add_header X-Frame-Options "SAMEORIGIN";
-          #   add_header X-XSS-Protection "1; mode=block";
-          #   add_header X-Content-Type-Options "nosniff";
-
-          #   index index.php;
-
-          #   charset utf-8;
-
-          #   location / {
-          #     try_files $uri $uri/ /index.php?$query_string;
-          #   }
-
-          #   location = /favicon.ico { access_log off; log_not_found off; }
-          #   location = /robots.txt  { access_log off; log_not_found off; }
-
-          #   error_page 404 /index.php;
-
-          #   location ~ \.php$ {
-          #     fastcgi_pass unix:/var/run/php-fpm/www.sock;
-          #     fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-          #     include fastcgi_params;
-          #   }
-
-          #   location ~ /\.(?!well-known).* {
-          #     deny all;
-          #   }
-          # }
 
   # RDS instance
   MasterDB:
