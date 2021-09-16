@@ -359,7 +359,9 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash 
-          yum install -y htop nmap
+          sudo yum -y update
+          sudo amazon-linux-extras install -y php8.0
+          sudo yum install -y htop nmap git
   #ec2 초기 설정.
   EC2Instance:
     Type: "AWS::EC2::Instance"
@@ -386,10 +388,10 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash 
           # yum update
-          sudo yum -y update || sudo install -y amazon-linux-extras
+          sudo yum -y update
           # php, nginx, git 설치
           sudo amazon-linux-extras install -y nginx1 php8.0
-          sudo yum install -y git sudo yum install git mariadb-server php-{pear,cgi,common,curl,mbstring,gd,mysqlnd,gettext,bcmath,json,xml,fpm,intl,zip} -y          
+          sudo yum install -y git mariadb-server php-{pear,cgi,common,curl,mbstring,gd,mysqlnd,gettext,bcmath,json,xml,fpm,intl,zip}          
 
           # nginx 시작 프로그램 등록.
           sudo systemctl enable nginx
@@ -474,7 +476,7 @@ Resources:
                 charset utf-8;
 
                 location / {
-                    try_files $uri $uri/ /index.php?$query_string;
+                    try_files \$uri \$uri/ /index.php?\$query_string;
                 }
 
                 location = /favicon.ico { access_log off; log_not_found off; }
@@ -484,7 +486,7 @@ Resources:
 
                 location ~ \.php$ {
                   fastcgi_pass unix:/var/run/php-fpm/www.sock;
-                  fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+                  fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
                   include fastcgi_params;
                 }
 
@@ -507,9 +509,9 @@ Resources:
 
           # 소스 내려받기
           # git clone https://id:password@github.com/mycompany/ExampleServer.git www
-          # chown -R ec2-user.ec2-user /home/ec2-user/www
+          # chown -R nginx.nginx /home/ec2-user/www
 
-          # sudo chown -R nginx:nginx storage bootstrap/cache
+          # sudo chmod -R 775 storage bootstrap/cache
 
   # RDS instance
   MasterDB:
